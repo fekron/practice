@@ -1,5 +1,7 @@
 ﻿# Modsen Practice (Image augmentation)
 
+The app for augmenting images using various transformations.
+
 ## Content
 
 - [Features](#id_features)
