@@ -16,12 +16,13 @@ The app for augmenting images using various transformations.
 - Load ✔
 - Scale ✔
 - Rotate ✔
+- Reflect ✔
+- Brightness ✔
+- Crop ✔
 - Noise ✖
 - Random Crop ✖
 - Add text ✖
-- Brightness ✖
 - Contrast ✖
-- Crop ✖
 
 
 
