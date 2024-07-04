@@ -19,10 +19,10 @@ The app for augmenting images using various transformations.
 - Reflect ✔
 - Brightness ✔
 - Crop ✔
-- Noise ✖
-- Random Crop ✖
-- Add text ✖
-- Contrast ✖
+- Noise ✔
+- Random Crop ✔
+- Add text ✔
+- Contrast ✔
 
 
 
