@@ -1,7 +1,8 @@
 import os
 import tkinter as tk
-from PIL import Image, ImageTk, ImageEnhance, ImageOps
-from tkinter import Menu, messagebox, filedialog, Canvas, Button, simpledialog
+from PIL import Image, ImageTk, ImageEnhance, ImageOps, ImageDraw, ImageFont
+from tkinter import Menu, messagebox, filedialog, Canvas, Button, simpledialog, colorchooser
+import random
 import numpy as np
 import cv2
 
@@ -63,12 +64,28 @@ class App:
         self.brightness_button.pack(side="left", padx=5, pady=5)
 
         # Create Crop Button
-        self.rotate_button = Button(self.master, text="Crop", command=self.crop_image_dialog)
-        self.rotate_button.pack(side="left", padx=5)
+        self.crop_button = Button(self.master, text="Crop", command=self.crop_image_dialog)
+        self.crop_button.pack(side="left", padx=5)
 
         # Create Reflect Button
-        self.rotate_button = Button(self.master, text="Reflect", command=self.reflect_image_dialog)
-        self.rotate_button.pack(side="left", padx=5)
+        self.reflect_button = Button(self.master, text="Reflect", command=self.reflect_image_dialog)
+        self.reflect_button.pack(side="left", padx=5)
+
+        # Create Noise Button
+        self.noise_button = Button(self.master, text="Noise", command=self.add_noise_dialog)
+        self.noise_button.pack(side="left", padx=5)
+
+        # Create Contrast Button
+        self.contrast_button = Button(self.master, text="Contrast", command=self.change_contrast_dialog)
+        self.contrast_button.pack(side="left", padx=5)
+
+        # Create Random Crop Button
+        self.random_crop_button = Button(self.master, text="Random Crop", command=self.random_crop_dialog)
+        self.random_crop_button.pack(side="left", padx=5)
+
+        # Create Add Text Button
+        self.add_text_button = Button(self.master, text="Add text", command=self.add_text_dialog)
+        self.add_text_button.pack(side="left", padx=5)
 
     def save_image(self):
         """
@@ -124,20 +141,6 @@ class App:
         Show an information messagebox with details about the application.
         """
         messagebox.showinfo('About', 'Modsen - Image Editing App')
-
-    def scale_image_dialog(self):
-        """
-        Prompt the user for a scale factor and scale the image accordingly.
-        """
-        scale_factor = float(input("Enter the scale factor (e.g., 0.5 for half size, 2 for double size): "))
-        self.scale_image(scale_factor)
-
-    def rotate_image_dialog(self):
-        """
-        Prompt the user for a rotation angle and rotate the image accordingly.
-        """
-        angle = float(input("Enter the rotation angle in degrees: "))
-        self.rotate_image(angle)
 
     def scale_image(self, scale_factor):
         """
@@ -196,6 +199,11 @@ class App:
         scale_entry.pack(side="left", padx=5, pady=5)
         scale_entry.focus_set()
 
+        # Create a label for scale factor ranges
+        scale_range_text = "Scale by the given factor, f.e. 0.5 to halve it, 2 to double"
+        scale_range_label = tk.Label(self.toplevel, text=scale_range_text)
+        scale_range_label.pack(padx=5, pady=5)
+
         # Create a scale button
         scale_button = tk.Button(self.toplevel, text="Scale",
                                  command=lambda: self.scale_image(float(scale_entry.get())))
@@ -216,6 +224,11 @@ class App:
         angle_entry.pack(side="left", padx=5, pady=5)
         angle_entry.focus_set()
 
+        # Create a label for rotate info
+        rotate_text = "Rotate by the given angle (in degrees)"
+        rotate_label = tk.Label(self.toplevel, text=rotate_text)
+        rotate_label.pack(padx=5, pady=5)
+
         # Create a rotate button
         rotate_button = tk.Button(self.toplevel, text="Rotate", command=lambda: self.rotate_image(float(angle_entry.get())))
         rotate_button.pack(side="left", padx=5, pady=5)
@@ -234,6 +247,12 @@ class App:
         brightness_entry = tk.Entry(self.toplevel)
         brightness_entry.pack(side="left", padx=5, pady=5)
         brightness_entry.focus_set()
+
+        # Create a label for brightness info
+        brightness_text = "Less than 1.0 decrease brightness, more than 1.0 increase"
+        brightness_text_label = tk.Label(self.toplevel, text=brightness_text)
+        brightness_text_label.pack(padx=5, pady=5)
+
         # Create a change brightness button
         brightness_button = tk.Button(self.toplevel, text="Change Brightness",
                                       command=lambda: self.change_brightness(float(brightness_entry.get())))
@@ -364,6 +383,273 @@ class App:
 
             # Update the PhotoImage with the reflected image
             self.photo = ImageTk.PhotoImage(reflected_image)
+
+            # Configure the image_label with the updated PhotoImage
+            self.image_label.configure(image=self.photo)
+            self.image_label.image = self.photo  # Keep a reference to the image to prevent garbage collection
+
+    def add_noise_dialog(self):
+        """
+        Prompt the user for the noise intensity and add noise to the image accordingly.
+        """
+        # Create a top-level dialog window
+        self.toplevel = tk.Toplevel(self.master)
+        self.toplevel.title("Add Noise")
+
+        # Create noise intensity entry field
+        intensity_label = tk.Label(self.toplevel, text="Noise Intensity:")
+        intensity_label.pack(side="left", padx=5, pady=5)
+        intensity_entry = tk.Entry(self.toplevel)
+        intensity_entry.pack(side="left", padx=5, pady=5)
+        intensity_entry.focus_set()
+
+        # Create a label for noise info
+        brightness_text = "Add noise based on the given intensity, between 0 and 1"
+        brightness_text_label = tk.Label(self.toplevel, text=brightness_text)
+        brightness_text_label.pack(padx=5, pady=5)
+
+        # Create add noise button
+        noise_button = tk.Button(self.toplevel, text="Add Noise", command=lambda: self.add_noise(intensity_entry.get()))
+        noise_button.pack(side="left", padx=5, pady=5)
+
+    def add_noise(self, intensity):
+        """
+        Add random noise to the currently displayed image based on the given intensity.
+
+        Args:
+            intensity (str): The intensity of the noise. A higher value results in more intense noise.
+        """
+        if self.photo:
+            # Get the PIL Image object from the PhotoImage
+            pil_image = ImageTk.getimage(self.photo)
+
+            # Convert the intensity to a float value between 0 and 1
+            # To see the better result use very low intensity, f.e. 0.001
+            intensity = float(intensity)
+
+            # Calculate the maximum pixel value based on the image mode
+            max_pixel_value = 255 if pil_image.mode == "RGB" else 65535
+
+            # Loop through each pixel and add noise
+            for x in range(pil_image.width):
+                for y in range(pil_image.height):
+                    pixel = pil_image.getpixel((x, y))
+
+                    # Generate random noise for each color channel
+                    noise = tuple(
+                        min(max(int(p + random.uniform(-intensity, intensity) * max_pixel_value), 0), max_pixel_value)
+                        for p in pixel
+                    )
+
+                    pil_image.putpixel((x, y), noise)
+
+            # Update the PhotoImage with the modified image
+            self.photo = ImageTk.PhotoImage(pil_image)
+
+            # Configure the image_label with the updated PhotoImage
+            self.image_label.configure(image=self.photo)
+            self.image_label.image = self.photo  # Keep a reference to the image to prevent garbage collection
+
+    def change_contrast_dialog(self):
+        """
+        Prompt the user for the contrast level and change the contrast of the image accordingly.
+        """
+        # Create a top-level dialog window
+        self.toplevel = tk.Toplevel(self.master)
+        self.toplevel.title("Change Contrast")
+
+        # Create contrast level entry field
+        level_label = tk.Label(self.toplevel, text="Contrast Level:")
+        level_label.pack(side="left", padx=5, pady=5)
+        level_entry = tk.Entry(self.toplevel)
+        level_entry.pack(side="left", padx=5, pady=5)
+        level_entry.focus_set()
+
+        # Create a label for contrast info
+        brightness_text = "Less than 1.0 decrease the contrast, more than 1.0 increase"
+        brightness_text_label = tk.Label(self.toplevel, text=brightness_text)
+        brightness_text_label.pack(padx=5, pady=5)
+
+        # Create change contrast button
+        contrast_button = tk.Button(self.toplevel, text="Change Contrast",
+                                    command=lambda: self.change_contrast(level_entry.get()))
+        contrast_button.pack(side="left", padx=5, pady=5)
+
+    def change_contrast(self, level):
+        """
+        Change the contrast of the currently displayed image based on the given contrast level.
+
+        Args:
+            level (str): The contrast level. 1.0 represents the original contrast.
+                          Values less than 1.0 decrease the contrast, and values greater than 1.0 increase the contrast.
+        """
+        if self.photo:
+            # Get the PIL Image object from the PhotoImage
+            pil_image = ImageTk.getimage(self.photo)
+
+            # Convert the contrast level to a float value
+            level = float(level)
+
+            # Create an enhancer object for contrast adjustment
+            enhancer = ImageEnhance.Contrast(pil_image)
+
+            # Adjust the contrast
+            adjusted_image = enhancer.enhance(level)
+
+            # Update the PhotoImage with the adjusted image
+            self.photo = ImageTk.PhotoImage(adjusted_image)
+
+            # Configure the image_label with the updated PhotoImage
+            self.image_label.configure(image=self.photo)
+            self.image_label.image = self.photo  # Keep a reference to the image to prevent garbage collection
+
+    def random_crop_dialog(self):
+        """
+        Prompt the user for the crop size and randomly crop the image accordingly.
+        """
+        # Create a top-level dialog window
+        self.toplevel = tk.Toplevel(self.master)
+        self.toplevel.title("Random Crop")
+
+        # Create crop size entry fields
+        width_label = tk.Label(self.toplevel, text="Width:")
+        width_label.pack(side="left", padx=5, pady=5)
+        width_entry = tk.Entry(self.toplevel)
+        width_entry.pack(side="left", padx=5, pady=5)
+        width_entry.focus_set()
+
+        height_label = tk.Label(self.toplevel, text="Height:")
+        height_label.pack(side="left", padx=5, pady=5)
+        height_entry = tk.Entry(self.toplevel)
+        height_entry.pack(side="left", padx=5, pady=5)
+
+        # Create random crop button
+        crop_button = tk.Button(self.toplevel, text="Random Crop",
+                                command=lambda: self.random_crop(width_entry.get(), height_entry.get()))
+        crop_button.pack(side="left", padx=5, pady=5)
+
+    def random_crop(self, width, height):
+        """
+        Randomly crop the currently displayed image based on the given width and height.
+
+        Args:
+            width (str): The width of the crop area.
+            height (str): The height of the crop area.
+        """
+        if self.photo:
+            # Get the PIL Image object from the PhotoImage
+            pil_image = ImageTk.getimage(self.photo)
+
+            # Convert the width and height to integers
+            width = int(width)
+            height = int(height)
+
+            # Calculate the maximum crop positions
+            max_x = pil_image.width - width
+            max_y = pil_image.height - height
+
+            if max_x < 0 or max_y < 0:
+                # Crop size is larger than the image, do not perform cropping
+                return
+
+            # Generate random crop positions
+            x = np.random.randint(0, max_x)
+            y = np.random.randint(0, max_y)
+
+            # Crop the image
+            cropped_image = pil_image.crop((x, y, x + width, y + height))
+
+            # Update the PhotoImage with the cropped image
+            self.photo = ImageTk.PhotoImage(cropped_image)
+
+            # Configure the image_label with the updated PhotoImage
+            self.image_label.configure(image=self.photo)
+            self.image_label.image = self.photo  # Keep a reference to the image to prevent garbage collection
+
+    def add_text_dialog(self):
+        """
+        Prompt the user for the text content, position, font size, and color, and add text to the image accordingly.
+        """
+        # Create a top-level dialog window
+        self.toplevel = tk.Toplevel(self.master)
+        self.toplevel.title("Add Text")
+
+        # Create text content entry field
+        content_label = tk.Label(self.toplevel, text="Text Content:")
+        content_label.pack(side="left", padx=5, pady=5)
+        content_entry = tk.Entry(self.toplevel)
+        content_entry.pack(side="left", padx=5, pady=5)
+        content_entry.focus_set()
+
+        # Create text position entry fields
+        position_label = tk.Label(self.toplevel, text="Text Position:")
+        position_label.pack(side="left", padx=5, pady=5)
+
+        x_label = tk.Label(self.toplevel, text="X:")
+        x_label.pack(side="left", padx=5, pady=5)
+        x_entry = tk.Entry(self.toplevel)
+        x_entry.pack(side="left", padx=5, pady=5)
+
+        y_label = tk.Label(self.toplevel, text="Y:")
+        y_label.pack(side="left", padx=5, pady=5)
+        y_entry = tk.Entry(self.toplevel)
+        y_entry.pack(side="left", padx=5, pady=5)
+
+        # Create font size entry field
+        size_label = tk.Label(self.toplevel, text="Font Size:")
+        size_label.pack(side="left", padx=5, pady=5)
+        size_entry = tk.Entry(self.toplevel)
+        size_entry.pack(side="left", padx=5, pady=5)
+
+        # Create color picker button
+        color_button = tk.Button(self.toplevel, text="Choose Color", command=self.choose_text_color)
+        color_button.pack(side="left", padx=5, pady=5)
+
+        # Create add text button
+        text_button = tk.Button(self.toplevel, text="Add Text",
+                                command=lambda: self.add_text(content_entry.get(), x_entry.get(), y_entry.get(),
+                                                              size_entry.get()))
+        text_button.pack(side="left", padx=5, pady=5)
+
+    def choose_text_color(self):
+        """
+        Open a color picker dialog and set the selected color as the text color.
+        """
+        color = tk.colorchooser.askcolor()
+        if color:
+            self.text_color = color[1]  # Get the hex color value
+
+    def add_text(self, content, x, y, size):
+        """
+        Add text to the currently displayed image based on the given content, position, font size, and color.
+
+        Args:
+            content (str): The text content.
+            x (str): The X-coordinate of the text position.
+            y (str): The Y-coordinate of the text position.
+            size (str): The font size.
+        """
+        if self.photo:
+            # Get the PIL Image object from the PhotoImage
+            pil_image = ImageTk.getimage(self.photo)
+
+            # Convert the position, size, and color values
+            x = int(x)
+            y = int(y)
+            size = int(size)
+            color = self.text_color if hasattr(self, "text_color") else "black"
+
+            # Create a PIL ImageDraw object
+            draw = ImageDraw.Draw(pil_image)
+
+            # Create a PIL ImageFont object with the specified font size
+            font = ImageFont.truetype("arial.ttf", size)
+
+            # Draw the text on the image
+            draw.text((x, y), content, fill=color, font=font)
+
+            # Update the PhotoImage with the modified image
+            self.photo = ImageTk.PhotoImage(pil_image)
 
             # Configure the image_label with the updated PhotoImage
             self.image_label.configure(image=self.photo)
